@@ -22,7 +22,19 @@ if [[ "$UID" != "0" ]]; then
 fi
 
 USER=$1
-LOG_FILE=/home/$USER/.i915_reload_log.txt
+
+LOG_DIR=/home/$USER/.i915_reload
+LOG_FILE=${LOG_DIR}/log.txt
+mkdir -p $LOG_DIR
+
+#
+# Save the existing brightness level, to reload it back later.
+#
+# After reloading the i915 module, the brightness is reset to
+# maximum possible level, which gets blinding / bothersome.
+#
+INTEL_DISPLAY_BRIGHTNESS=/sys/class/backlight/intel_backlight/brightness
+BRIGHTNESS_LOG=${LOG_DIR}/brightness.txt
 
 exec > $LOG_FILE
 exec 2>&1
@@ -70,6 +82,8 @@ function unbind_gfx ()
 {
     local retries=0
 
+    cat ${INTEL_DISPLAY_BRIGHTNESS} > ${BRIGHTNESS_LOG}
+
     systemctl stop gdm
     systemctl stop systemd-logind
     pkill gnome-shell
@@ -94,6 +108,9 @@ function bind_gfx()
 {
     bind_vtcon
     modprobe i915
+
+    cat ${BRIGHTNESS_LOG} > ${INTEL_DISPLAY_BRIGHTNESS}
+
     systemctl start systemd-logind
     systemctl start gdm
 }
